@@ -3,6 +3,8 @@ const express = require('express');
 const routes = require('./routes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('../swagger');
+const recipeRoutes = require('./routes/recipes');
+const userRoutes = require('./routes/users');
 
 // Initialize express app
 const app = express();
@@ -43,14 +45,35 @@ app.use(express.json());
 
 // Mount routes
 app.use('/', routes);
+app.use('/api/recipes', recipeRoutes);
+app.use('/api/users', userRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
+// Not Found handler
+app.use((req, res, next) => {
+  res.status(404).json({
     status: 'error',
-    message: 'Internal Server Error',
+    message: 'Not Found',
+    path: req.originalUrl
   });
+});
+
+// Centralized Error handling middleware
+// Includes validation-related errors (with status and details)
+app.use((err, req, res, next) => {
+  const status = err.status || 500;
+  const payload = {
+    status: 'error',
+    message: err.message || 'Internal Server Error',
+  };
+  if (err.details) {
+    payload.details = err.details;
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    // log stack in non-prod
+    // eslint-disable-next-line no-console
+    console.error(err.stack);
+  }
+  res.status(status).json(payload);
 });
 
 module.exports = app;
